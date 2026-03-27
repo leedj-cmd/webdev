@@ -1,9 +1,27 @@
 # filename: backend/main.py
 from fastapi import FastAPI
+<<<<<<< Updated upstream
 
 app = FastAPI()
 
 
+=======
+from app.database import init_db
+from app.routers import auth, post
+import app.models.user  # 테이블 인식을 위해 import
+import app.models.post  # 테이블 인식을 위해 import
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()  # 서버 시작 시 테이블 자동 생성
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+app.include_router(auth.router)
+app.include_router(post.router)
+>>>>>>> Stashed changes
 
 @app.get("/")
 def health_check():
