@@ -1,27 +1,17 @@
 # filename: backend/main.py
 from fastapi import FastAPI
-<<<<<<< Updated upstream
+from app.routers import auth, post, comment, interaction
+import app.models.user
+import app.models.post
+import app.models.comment
+import app.models.interaction
 
 app = FastAPI()
 
-
-=======
-from app.database import init_db
-from app.routers import auth, post
-import app.models.user  # 테이블 인식을 위해 import
-import app.models.post  # 테이블 인식을 위해 import
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await init_db()  # 서버 시작 시 테이블 자동 생성
-    yield
-
-
-app = FastAPI(lifespan=lifespan)
-
 app.include_router(auth.router)
 app.include_router(post.router)
->>>>>>> Stashed changes
+app.include_router(comment.router)
+app.include_router(interaction.router)
 
 @app.get("/")
 def health_check():
@@ -35,7 +25,6 @@ def hello():
 @app.get("/posts")
 def list_post():
     return {"posts": [{"id": 1, "title": "첫 번째 글"}]}
-
 
 #데이터 생성 (http://127.0.0.1:8000/posts)
 @app.post("/posts")
@@ -51,6 +40,3 @@ def update_post(post_id: int):
 @app.delete("/posts/{post_id}")
 def delete_post(post_id: int):
     return {"message": f"{post_id}번 게시글이 삭제되었습니다"}
-
-
-
