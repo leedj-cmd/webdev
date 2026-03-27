@@ -6,8 +6,8 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "1234"
-      POSTGRES_DB: my_post_db
+      POSTGRES_DB: project
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - ./postgres_data:/var/lib/postgresql
