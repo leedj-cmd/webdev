@@ -1,9 +1,14 @@
-from sqlalchemy import Column, Integer
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy.sql import func
 from app.database import Base
 
 class User(Base):
-    # 실제 DB에 있는 유저 테이블 이름과 똑같이 맞춰야 합니다! (보통 "users"를 많이 씁니다)
     __tablename__ = "users"
 
-    # 댓글 테이블이 연결될 기준점(id)
     id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(String, default="user")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
