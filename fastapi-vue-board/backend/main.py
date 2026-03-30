@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, post, comment, interaction
+from app.routers import job, contest
 import app.models.user
 import app.models.post
 import app.models.comment
@@ -22,6 +23,8 @@ app.include_router(auth.router)
 app.include_router(post.router)
 app.include_router(comment.router)
 app.include_router(interaction.router)
+app.include_router(job.router)
+app.include_router(contest.router)
 
 @app.get("/")
 def health_check():

@@ -4,6 +4,7 @@ from app.database import engine, Base
 # 👇👇👇 이 두 줄을 추가해 주세요! (기존 테이블 설계도도 가져오기)
 from app.models.user import User  # (주의: 파일 이름이 users.py라면 app.models.users 로 수정!)
 from app.models.post import Post
+from app.models import job, contest, scrap
 
 # 새로 만든 테이블들
 from app.models.comment import Comment
