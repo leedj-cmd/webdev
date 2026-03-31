@@ -1,3 +1,4 @@
+# filename: backend/app/routers/auth.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -99,7 +100,7 @@ async def find_id(data: FindIdRequest, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="해당 닉네임의 유저를 찾을 수 없습니다")
-    # 이메일 일부 가려서 반환 (ex: te***@test.com)
+    # 이메일 일부 가려서 반환
     email = user.email
     hidden = email[2:email.index("@")]
     masked_email = email[:2] + "*" * len(hidden) + email[email.index("@"):]
@@ -206,3 +207,50 @@ async def get_likes(current_user: User = Depends(get_current_user)):
         "user_id": current_user.id,
         "message": "추천 목록 조회 (좋아요 모델 연결 후 구현)"
     }
+
+# ── 15. 관리자 전용 회원가입 (비밀 코드 필요)
+@router.post("/signup/admin", response_model=UserResponse, status_code=201)
+async def signup_admin(
+    data: UserCreate,
+    admin_secret: str,           # Swagger에서 쿼리 파라미터로 입력
+    db: AsyncSession = Depends(get_db)
+):
+    # .env의 ADMIN_SECRET과 비교 (없으면 기본값 사용)
+    if admin_secret != os.getenv("ADMIN_SECRET", "admin_secret_change_me"):
+        raise HTTPException(status_code=403, detail="관리자 코드가 틀렸습니다.")
+
+    # 이메일 중복 확인
+    result = await db.execute(select(User).where(User.email == data.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="이미 사용중인 이메일입니다")
+
+    # role을 "admin"으로 설정해서 생성
+    new_user = User(
+        email=data.email,
+        username=data.username,
+        hashed_password=pwd_context.hash(data.password),
+        role="admin"
+    )
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
+
+# ── 16. 기존 유저를 관리자로 승격 (비밀 코드 필요)
+@router.patch("/promote/admin")
+async def promote_to_admin(
+    email: str,
+    admin_secret: str,
+    db: AsyncSession = Depends(get_db)
+):
+    if admin_secret != os.getenv("ADMIN_SECRET", "admin_secret_change_me"):
+        raise HTTPException(status_code=403, detail="관리자 코드가 틀렸습니다.")
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다")
+
+    user.role = "admin"
+    await db.commit()
+    return {"message": f"{email} 계정이 관리자로 승격되었습니다."}

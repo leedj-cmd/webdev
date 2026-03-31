@@ -1,19 +1,23 @@
 import asyncio
 from app.database import engine, Base
 
-# 👇👇👇 이 두 줄을 추가해 주세요! (기존 테이블 설계도도 가져오기)
-from app.models.user import User  # (주의: 파일 이름이 users.py라면 app.models.users 로 수정!)
+# 모든 모델 import (테이블 설계도 등록)
+from app.models.user import User
 from app.models.post import Post
-from app.models import job, contest, scrap
-
-# 새로 만든 테이블들
 from app.models.comment import Comment
 from app.models.interaction import PostLike, PostRecommend
+from app.models.job import Job
+from app.models.contest import Contest
+from app.models.scrap import Scrap
 
 async def init_db():
-    print("🚀 데이터베이스 테이블 생성을 시작합니다...")
+    print("🗑️  기존 테이블을 전부 삭제합니다...")
     async with engine.begin() as conn:
-        # 모든 테이블 설계도를 모아서 DB에 쏴줍니다.
+        await conn.run_sync(Base.metadata.drop_all)
+    print("✅ 기존 테이블 삭제 완료!")
+
+    print("🚀 테이블을 새로 생성합니다...")
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     print("✨ 테이블 생성 완료! 이제 서버를 켜도 좋습니다.")
 
