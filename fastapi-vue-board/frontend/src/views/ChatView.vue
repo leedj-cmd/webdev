@@ -265,7 +265,9 @@ const selectRoom = async (roomId) => {
 const connectWebSocket = (roomId) => {
   const token = localStorage.getItem('access_token')
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  ws.value = new WebSocket(`${protocol}//127.0.0.1:8000/chat/ws/${roomId}?token=${token}`)
+  const isProd = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+  const wsHost = isProd ? window.location.host : '127.0.0.1:8000'
+  ws.value = new WebSocket(`${protocol}//${wsHost}/chat/ws/${roomId}?token=${token}`)
 
   ws.value.onmessage = (event) => {
     try {
