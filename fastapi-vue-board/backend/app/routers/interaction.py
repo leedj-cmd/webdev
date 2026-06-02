@@ -1,75 +1,132 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from pydantic import BaseModel
+from sqlalchemy import func
 
 from app.database import get_db
-# 모델 경로는 이미 만들어두신 app/models/interaction.py를 참조합니다.
-from app.models.interaction import PostLike, PostRecommend 
+from app.models.interaction import PostLike, PostBookmark
+from app.models.post import Post
+from app.schemas.post import PostResponse
+from app.models.user import User
+from app.dependencies import get_current_user, get_optional_current_user
+from app.routers.notification import create_notification
 
 router = APIRouter(prefix="/interactions", tags=["Interactions"])
 
-# 요청 시 받을 데이터 형식 (유저 ID)
-class InteractionRequest(BaseModel):
-    user_id: int
 
-# --- [ 좋아요(Like) 기능 ] ---
+# ── 좋아요 수 + 현재 유저 좋아요 여부 조회
+@router.get("/{post_id}/likes/status")
+async def get_like_status(
+    post_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user),
+):
+    count_result = await db.execute(
+        select(func.count(PostLike.user_id)).where(PostLike.post_id == post_id)
+    )
+    count = count_result.scalar() or 0
 
-# 1. 좋아요 추가
+    is_liked = False
+    if current_user:
+        like_result = await db.execute(
+            select(PostLike).where(
+                PostLike.post_id == post_id,
+                PostLike.user_id == current_user.id
+            )
+        )
+        is_liked = like_result.scalar_one_or_none() is not None
+
+    return {"count": count, "is_liked": is_liked}
+
+
+# ── 좋아요 추가
 @router.post("/{post_id}/likes")
-async def add_like(post_id: int, req: InteractionRequest, db: AsyncSession = Depends(get_db)):
-    # 중복 체크 (이미 좋아요를 눌렀는지 확인)
-    query = select(PostLike).where(PostLike.post_id == post_id, PostLike.user_id == req.user_id)
+async def add_like(
+    post_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(PostLike).where(PostLike.post_id == post_id, PostLike.user_id == current_user.id)
     result = await db.execute(query)
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="이미 좋아요를 누르셨습니다.")
-    
-    new_like = PostLike(post_id=post_id, user_id=req.user_id)
-    db.add(new_like)
+
+    db.add(PostLike(post_id=post_id, user_id=current_user.id))
     await db.commit()
+
+    # 알림: 게시글 작성자에게
+    post = await db.get(Post, post_id)
+    if post and post.author_id != current_user.id:
+        await create_notification(
+            db=db,
+            recipient_id=post.author_id,
+            actor_name=current_user.username,
+            notification_type="post_like",
+            message=f"{current_user.username}님이 좋아요를 눌렀습니다.",
+            related_type="post",
+            related_id=post_id,
+        )
+
     return {"message": "좋아요가 추가되었습니다."}
 
-# 2. 좋아요 취소
+
+# ── 좋아요 취소
 @router.delete("/{post_id}/likes/{user_id}")
 async def remove_like(post_id: int, user_id: int, db: AsyncSession = Depends(get_db)):
     query = select(PostLike).where(PostLike.post_id == post_id, PostLike.user_id == user_id)
     result = await db.execute(query)
     like = result.scalar_one_or_none()
-    
+
     if not like:
         raise HTTPException(status_code=404, detail="좋아요 기록이 없습니다.")
-    
+
     await db.delete(like)
     await db.commit()
     return {"message": "좋아요가 취소되었습니다."}
 
 
-# --- [ 추천(Recommend) 기능 ] ---
-
-# 3. 추천 추가
-@router.post("/{post_id}/recommends")
-async def add_recommend(post_id: int, req: InteractionRequest, db: AsyncSession = Depends(get_db)):
-    # 중복 체크
-    query = select(PostRecommend).where(PostRecommend.post_id == post_id, PostRecommend.user_id == req.user_id)
+# ── 북마크 추가
+@router.post("/{post_id}/bookmarks")
+async def add_bookmark(
+    post_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(PostBookmark).where(PostBookmark.post_id == post_id, PostBookmark.user_id == current_user.id)
     result = await db.execute(query)
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="이미 추천하셨습니다.")
-    
-    new_rec = PostRecommend(post_id=post_id, user_id=req.user_id)
-    db.add(new_rec)
-    await db.commit()
-    return {"message": "추천되었습니다."}
+        raise HTTPException(status_code=400, detail="이미 북마크하셨습니다.")
 
-# 4. 추천 취소
-@router.delete("/{post_id}/recommends/{user_id}")
-async def remove_recommend(post_id: int, user_id: int, db: AsyncSession = Depends(get_db)):
-    query = select(PostRecommend).where(PostRecommend.post_id == post_id, PostRecommend.user_id == user_id)
-    result = await db.execute(query)
-    recommend = result.scalar_one_or_none()
-    
-    if not recommend:
-        raise HTTPException(status_code=404, detail="추천 기록이 없습니다.")
-    
-    await db.delete(recommend)
+    db.add(PostBookmark(post_id=post_id, user_id=current_user.id))
     await db.commit()
-    return {"message": "추천이 취소되었습니다."}
+    return {"message": "북마크가 추가되었습니다."}
+
+
+# ── 북마크 취소
+@router.delete("/{post_id}/bookmarks/{user_id}")
+async def remove_bookmark(post_id: int, user_id: int, db: AsyncSession = Depends(get_db)):
+    query = select(PostBookmark).where(PostBookmark.post_id == post_id, PostBookmark.user_id == user_id)
+    result = await db.execute(query)
+    bookmark = result.scalar_one_or_none()
+
+    if not bookmark:
+        raise HTTPException(status_code=404, detail="북마크 기록이 없습니다.")
+
+    await db.delete(bookmark)
+    await db.commit()
+    return {"message": "북마크가 취소되었습니다."}
+
+
+# 북마크 목록 조회
+@router.get("/bookmarks", response_model=list[PostResponse])
+async def get_bookmarks(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Post)
+        .join(PostBookmark, Post.id == PostBookmark.post_id)
+        .where(PostBookmark.user_id == current_user.id)
+        .order_by(PostBookmark.created_at.desc())
+    )
+    return result.scalars().all()

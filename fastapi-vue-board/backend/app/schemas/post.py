@@ -24,6 +24,9 @@ class PostUpdate(BaseModel):
 class PostResponse(PostBase):
     id: int
     author_id: int
+    author_name: Optional[str] = None  # ← 추가
+    view_count: Optional[int] = 0
+    like_count: Optional[int] = 0  # ← 추가
     created_at: datetime
     updated_at: Optional[datetime] = None
 

@@ -36,5 +36,7 @@ class ContestResponse(ContestBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     scrap_count: Optional[int] = 0
+    is_external: bool = False
+    source: Optional[str] = None
 
     model_config = {"from_attributes": True}

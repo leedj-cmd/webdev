@@ -1,7 +1,7 @@
 # filename: backend/app/routers/contest.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from typing import List, Optional
 
 from app.database import get_db
@@ -10,6 +10,7 @@ from app.models.scrap import Scrap
 from app.schemas.contest import ContestCreate, ContestUpdate, ContestResponse
 from app.routers.auth import get_current_user
 from app.models.user import User
+from app.services.external_opportunities import fetch_external_contests
 
 router = APIRouter(prefix="/contests", tags=["Contests"])
 
@@ -22,7 +23,9 @@ def require_admin(current_user: User):
 async def get_contests(
     skip: int = 0,
     limit: int = 10,
-    search: Optional[str] = Query(None),
+    include_external: bool = True,
+    external_limit: int = 30,
+    search: Optional[str] = Query(None, description="제목/주최측/키워드 검색"),
     category: Optional[str] = Query(None),
     target: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
@@ -31,7 +34,12 @@ async def get_contests(
 
     if search:
         query = query.where(
-            Contest.title.ilike(f"%{search}%") | Contest.organizer.ilike(f"%{search}%")
+            or_(
+                Contest.title.ilike(f"%{search}%"),
+                Contest.organizer.ilike(f"%{search}%"),
+                Contest.description.ilike(f"%{search}%"),
+                Contest.category.ilike(f"%{search}%")
+            )
         )
     if category:
         query = query.where(Contest.category == category)
@@ -40,7 +48,30 @@ async def get_contests(
 
     query = query.order_by(Contest.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    return result.scalars().all()
+    contests = list(result.scalars().all())
+
+    if not include_external:
+        return contests
+
+    external_contests = await fetch_external_contests(limit=min(max(external_limit, 0), 50))
+    if search:
+        lowered = search.lower()
+        external_contests = [
+            contest for contest in external_contests
+            if any(lowered in str(contest.get(field) or "").lower() for field in ["title", "organizer", "description", "category"])
+        ]
+    if category:
+        external_contests = [
+            contest for contest in external_contests
+            if category in (contest.get("category") or "") or category in (contest.get("description") or "")
+        ]
+    if target:
+        external_contests = [
+            contest for contest in external_contests
+            if target in (contest.get("target") or "")
+        ]
+
+    return contests + external_contests
 
 # 2. 공모전 상세 조회
 @router.get("/{contest_id}", response_model=ContestResponse)

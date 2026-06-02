@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 class Post(Base):
@@ -14,9 +15,18 @@ class Post(Base):
     region = Column(String, index=True, nullable=True)       
     
     # 작성자 ID (User 테이블과 연결)
-    # 주의: User 모델의 __tablename__이 "users"가 맞는지 확인해주세요!
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     # 작성/수정 시간 자동 기록
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    view_count = Column(Integer, default=0, nullable=False)
+
+    # 관계 설정
+    author = relationship("User", back_populates="posts")
+    comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
+    likes = relationship("PostLike", back_populates="post", cascade="all, delete-orphan")
+    recommends = relationship("PostRecommend", back_populates="post", cascade="all, delete-orphan")
+    bookmarks = relationship("PostBookmark", back_populates="post", cascade="all, delete-orphan")
+    scraps = relationship("Scrap", back_populates="post", cascade="all, delete-orphan")
