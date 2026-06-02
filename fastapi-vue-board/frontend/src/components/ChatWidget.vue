@@ -9,7 +9,7 @@
     <!-- Chat Window -->
     <div v-if="isOpen" class="chat-window">
       <div class="chat-header">
-        <h3>AI FAQ 챗봇</h3>
+        <h3>Tech Bridge AI 챗봇</h3>
         <p>무엇이든 물어보세요!</p>
       </div>
       
@@ -51,7 +51,7 @@ const isLoading = ref(false)
 const messageContainer = ref(null)
 
 const messages = ref([
-  { type: 'bot', text: '안녕하세요! MJC 커리어 플랫폼 AI 도우미입니다. 무엇을 도와드릴까요?' }
+  { type: 'bot', text: '안녕하세요! Tech Bridge 플랫폼 AI 도우미입니다. 무엇을 도와드릴까요?' }
 ])
 
 const toggleChat = () => {
