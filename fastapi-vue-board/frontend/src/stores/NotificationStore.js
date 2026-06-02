@@ -58,9 +58,7 @@ export const useNotificationStore = defineStore('notification', () => {
         if (_ws && _connectedToken !== token) disconnectWs()
 
         const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
-        const isProd = location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'
-        const wsHost = isProd ? location.host : '127.0.0.1:8000'
-        const url = `${protocol}://${wsHost}/notifications/ws?token=${token}`
+        const url = `${protocol}://127.0.0.1:8000/notifications/ws?token=${token}`
 
         _ws = new WebSocket(url)
         _connectedToken = token
