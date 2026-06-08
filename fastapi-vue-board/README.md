@@ -30,9 +30,10 @@ FastAPI + Vue 3 기반의 취업 준비생을 위한 커뮤니티 플랫폼입�
 
 | 구분 | 기술 |
 |------|------|
-| **Backend** | FastAPI, SQLAlchemy (async), PostgreSQL, JWT (OAuth2) |
-| **Frontend** | Vue 3 (Options API), Vue Router, Pinia, Axios |
-| **AI** | OpenAI API (FAQ 챗봇, 검열 필터) |
+| **Backend** | FastAPI, SQLAlchemy (async), PostgreSQL, JWT (OAuth2), WebSocket |
+| **Frontend** | Vue 3 (Composition + Options API), Vue Router, Pinia, Axios |
+| **AI** | Groq / OpenAI / Gemini (FAQ 챗봇), Transformers (욕설/공격성 검열) |
+| **이메일** | SMTP (이메일 인증, 비밀번호 재설정 메일) |
 | **인프라** | Docker Compose (PostgreSQL) |
 
 ---
@@ -42,10 +43,11 @@ FastAPI + Vue 3 기반의 취업 준비생을 위한 커뮤니티 플랫폼입�
 ```
 fastapi-vue-board/
 ├── backend/
+│   ├── main.py                      # FastAPI 앱 진입점 (DevCareer API)
 │   └── app/
-│       ├── main.py
 │       ├── database.py
 │       ├── dependencies.py          # JWT 인증 의존성
+│       ├── core/                    # config(Settings), security(JWT/해시)
 │       ├── models/                  # SQLAlchemy ORM 모델
 │       │   ├── user.py
 │       │   ├── post.py
@@ -53,17 +55,21 @@ fastapi-vue-board/
 │       │   ├── community.py
 │       │   ├── community_like.py
 │       │   ├── interaction.py       # PostLike, Scrap 등
+│       │   ├── email_verification.py
 │       │   ├── report.py            # PostReport, CommunityReport
 │       │   └── ...
 │       ├── schemas/                 # Pydantic v2 스키마
+│       ├── services/                # ai_service, email_service, external_opportunities
 │       └── routers/                 # FastAPI 라우터
 │           ├── auth.py
 │           ├── post.py
 │           ├── comment.py
 │           ├── community.py
+│           ├── chat.py
 │           ├── report.py
 │           ├── notification.py
 │           └── ...
+├── docs/                            # 이메일 인증 등 기능별 운영 가이드
 ├── frontend/
 │   └── src/
 │       ├── views/
@@ -102,9 +108,12 @@ docker-compose up -d
 
 ```bash
 cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+pip install -r requirements.txt    # 또는 uv sync
+uvicorn main:app --reload          # 또는 uv run fastapi dev main.py
 ```
+
+> `.env`에 최소 `DATABASE_URL`, `SECRET_KEY`, `ADMIN_SECRET`가 필요합니다.
+> 이메일 인증을 사용하려면 `SMTP_*` 값을 추가합니다([docs/email-verification.md](docs/email-verification.md)).
 
 ### 3. 프론트엔드 실행
 
@@ -126,8 +135,10 @@ npm run dev
 
 | 기능 | 설명 |
 |------|------|
-| 회원가입 | 이메일·사용자명·비밀번호로 가입 |
+| 회원가입 | 이메일·사용자명·비밀번호로 가입, 인증 메일 발송 |
+| 이메일 인증 | 메일 링크로 `verify-email` 처리, 미인증 시 로그인 차단 |
 | 로그인 | JWT Access Token 발급 (Bearer) |
+| 비밀번호 재설정 | 이메일 재설정 링크 발송 후 변경 |
 | 관리자 가입 | `/admin/register` — 별도 관리자 계정 생성 |
 | 프로필 조회/수정 | 자기 정보 확인 및 수정 |
 | 인증 가드 | `requiresAuth` / `guestOnly` / `requiresAdmin` 라우트 메타 |
@@ -237,7 +248,7 @@ v-if="comment.user_id === currentUserId"
 ### AI FAQ 챗봇
 
 - 경로: `/faq`
-- OpenAI API 기반 취업·커리어 관련 질문 응답
+- Groq / OpenAI / Gemini 중 설정된 provider로 취업·커리어 관련 질문 응답
 - 로그인 불필요 (공개 접근)
 
 ---
@@ -246,7 +257,7 @@ v-if="comment.user_id === currentUserId"
 
 - 경로: `/chat`
 - 로그인 필요 (`requiresAuth`)
-- WebSocket 기반 실시간 메시지 전송
+- WebSocket 기반 실시간 메시지 전송, 파일 첨부 지원
 
 ---
 

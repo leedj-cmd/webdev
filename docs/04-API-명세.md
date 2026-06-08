@@ -18,13 +18,16 @@
 
 | Method | Path | 인증 | 설명 |
 |---|---|---|---|
-| POST | `/auth/signup` | 불필요 | 일반 회원가입 |
-| POST | `/auth/login` | 불필요 | 로그인, access/refresh token 발급 |
+| POST | `/auth/signup` | 불필요 | 일반 회원가입, 인증 메일 발송 |
+| POST | `/auth/resend-verification` | 불필요 | 인증 메일 재발송 |
+| GET | `/auth/verify-email?token=` | 불필요 | 이메일 인증 링크 처리 |
+| POST | `/auth/login` | 불필요 | 로그인, access/refresh token 발급 (이메일 인증 필요) |
 | POST | `/auth/logout` | 불필요 | 서버 상태 변경 없는 로그아웃 메시지 반환 |
 | POST | `/auth/refresh` | 불필요 | refresh token으로 토큰 재발급 |
 | POST | `/auth/find-id` | 불필요 | 닉네임으로 마스킹 이메일 조회 |
-| POST | `/auth/find-password` | 불필요 | 비밀번호 재설정 토큰 생성 |
+| POST | `/auth/find-password` | 불필요 | 비밀번호 재설정 링크 메일 발송 |
 | PATCH | `/auth/reset-password` | 불필요 | 재설정 토큰으로 비밀번호 변경 |
+| PATCH | `/auth/reset-password/current` | 필요 | 현재 비밀번호 확인 후 변경 |
 | GET | `/auth/me` | 필요 | 내 정보 조회 |
 | PATCH | `/auth/profile` | 필요 | 닉네임, 소개 수정 |
 | POST | `/auth/profile/image` | 필요 | 프로필 이미지 업로드 |
@@ -42,6 +45,7 @@
 |---|---|---|---|
 | GET | `/posts/` | 불필요 | 게시글 목록, `skip`, `limit`, `search`, `job_category`, `region` |
 | GET | `/posts/popular` | 불필요 | 조회수 기준 인기 게시글 |
+| GET | `/posts/like_count` | 불필요 | 좋아요 수 기준 게시글 목록 |
 | GET | `/posts/{post_id}` | 불필요 | 게시글 상세, 조회수 증가 |
 | POST | `/posts/` | 필요 | 게시글 작성, 정지 회원 제한, AI 검열 |
 | PATCH | `/posts/{post_id}` | 필요 | 작성자 본인 수정 |
@@ -124,14 +128,19 @@
 
 | Method | Path | 인증 | 설명 |
 |---|---|---|---|
-| GET | `/community/` | 불필요 | 커뮤니티 목록, category 필터 |
-| GET | `/community/popular` | 불필요 | 댓글 수 기준 인기 커뮤니티 |
-| GET | `/community/job/{job_category}` | 불필요 | 직무별 커뮤니티 |
-| POST | `/community/anonymous` | 불필요 | 익명 커뮤니티 글 작성 |
-| POST | `/community/{community_id}/like` | 필요 | 커뮤니티 글 좋아요 토글 |
-| POST | `/community/{community_id}/comments` | 필요 | 댓글/대댓글 작성 |
+| GET | `/community/` | 불필요 | 커뮤니티 목록, `category`, 검색/정렬 필터 |
+| GET | `/community/{community_id}` | 불필요 | 커뮤니티 글 상세 |
+| POST | `/community/` | 필요 | 커뮤니티 글 작성, 카테고리/익명 선택 |
+| PATCH | `/community/{community_id}` | 필요 | 작성자 본인 글 수정 |
+| DELETE | `/community/{community_id}` | 필요 | 작성자 또는 관리자 글 삭제 |
+| POST | `/community/{community_id}/like` | 필요 | 커뮤니티 글 좋아요 토글, 알림 생성 |
+| GET | `/community/{community_id}/like/status` | 필요 | 좋아요 수와 현재 유저 좋아요 여부 |
 | GET | `/community/{community_id}/comments` | 불필요 | 댓글 목록 |
-| POST | `/community/comments/{comment_id}/like` | 필요 | 댓글 좋아요 토글 |
+| POST | `/community/{community_id}/comments` | 필요 | 댓글/대댓글 작성, 알림 생성 |
+| PATCH | `/community/{community_id}/comments/{comment_id}` | 필요 | 작성자 본인 댓글 수정 |
+| DELETE | `/community/{community_id}/comments/{comment_id}` | 필요 | 작성자 또는 관리자 댓글 삭제 |
+
+익명 글/댓글도 DB에는 실제 `owner_id`/`user_id`를 저장하고, 응답의 `author_name`만 `null`로 내려 수정·삭제 권한 판단이 가능합니다.
 
 ## Chat
 
@@ -144,6 +153,7 @@
 | GET | `/chat/rooms/{room_id}/members` | 필요 | 참여자 목록 |
 | GET | `/chat/rooms/{room_id}/messages` | 필요 | 메시지 목록 |
 | PATCH | `/chat/rooms/{room_id}/read` | 필요 | 메시지 읽음 처리 |
+| POST | `/chat/rooms/{room_id}/attachments` | 필요 | 파일 첨부 메시지 전송 (multipart) |
 | WS | `/chat/ws/{room_id}?token=` | 필요 | 실시간 메시지 |
 
 ## Notifications
@@ -160,6 +170,7 @@
 | Method | Path | 인증 | 설명 |
 |---|---|---|---|
 | POST | `/reports/posts/{post_id}` | 필요 | 게시글 신고, 중복 신고 방지 |
+| POST | `/reports/community/{community_id}` | 필요 | 커뮤니티 글 신고, 중복 신고 방지 |
 
 ## Admin
 
